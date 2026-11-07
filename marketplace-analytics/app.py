@@ -12,7 +12,8 @@ from marketplace_analytics.bootstrap import ensure_demo_database
 
 LABELS = {'order_id': 'ID заказа',
  'customer_unique_id': 'ID покупателя',
- 'customer_state': 'Регион покупателя',
+ 'country': 'Страна',
+ 'city': 'Город',
  'order_status': 'Статус заказа',
  'order_date': 'Дата заказа',
  'order_month': 'Месяц',
@@ -66,19 +67,21 @@ with st.sidebar:
     last_date = pd.to_datetime(all_orders.order_date.max()).date()
     picked = st.date_input("Период покупок", value=(first_date, last_date),
                            min_value=first_date, max_value=last_date)
-    states = sorted(all_orders.customer_state.dropna().unique().tolist())
-    selected_states = st.multiselect("Регион покупателя", states, default=states)
+    countries = sorted(all_orders.country.dropna().unique().tolist())
+    selected_countries = st.multiselect("Страна", countries, default=countries)
+    cities = sorted(all_orders.loc[all_orders.country.isin(selected_countries), "city"].dropna().unique().tolist())
+    selected_cities = st.multiselect("Город", cities, default=cities)
     st.divider()
     st.info("GMV — сумма стоимости товаров без доставки. Отменённые и недоступные заказы исключены. Выручка не равна прибыли.")
-    st.caption("Когорты рассчитываются по всей истории покупок. Фильтры по дате и региону на них не влияют.")
+    st.caption("Когорты рассчитываются по всей истории покупок. Фильтры по дате, стране и городу на них не влияют.")
 
 if not isinstance(picked, (list, tuple)) or len(picked) != 2:
     st.info("Выберите начало и конец периода.")
     st.stop()
-if not selected_states:
-    st.warning("Выберите хотя бы один регион.")
+if not selected_countries or not selected_cities:
+    st.warning("Выберите хотя бы одну страну и один город.")
     st.stop()
-subset = filter_orders(all_orders, picked[0], picked[1], selected_states)
+subset = filter_orders(all_orders, picked[0], picked[1], countries=selected_countries, cities=selected_cities)
 if subset.empty:
     st.warning("По выбранным фильтрам заказов нет.")
     st.stop()
@@ -99,9 +102,9 @@ with overview:
                         use_container_width=True)
         st.plotly_chart(px.bar(sales, x="order_month", y="orders", title="Eligible orders по месяцам", labels=LABELS),
                         use_container_width=True)
-    by_state = subset[subset.is_valid.eq(1)].groupby("customer_state", as_index=False).agg(gmv=("gmv", "sum"))
-    st.plotly_chart(px.bar(by_state.sort_values("gmv", ascending=False), x="customer_state", y="gmv",
-                           title="GMV по регионам покупателей", labels=LABELS), use_container_width=True)
+    by_country = subset[subset.is_valid.eq(1)].groupby("country", as_index=False).agg(gmv=("gmv", "sum"))
+    st.plotly_chart(px.bar(by_country.sort_values("gmv", ascending=False), x="country", y="gmv",
+                           title="GMV по странам покупателей", labels=LABELS), use_container_width=True)
 
 with delivery:
     d = subset[subset.is_late.notna()]
@@ -159,7 +162,7 @@ with rfm:
         st.dataframe(groups.rename(columns=LABELS), hide_index=True, use_container_width=True)
         st.download_button("Скачать RFM в CSV", scores.to_csv(index=False).encode("utf-8"),
                            "rfm_segments.csv", mime="text/csv")
-        st.caption("RFM пересчитывается для выбранного периода и регионов. Для сегментации по всей истории выберите весь период. Сегменты определяются эвристическими правилами.")
+        st.caption("RFM пересчитывается для выбранного периода, стран и городов. Для сегментации по всей истории выберите весь период. Сегменты определяются эвристическими правилами.")
 
 with data:
     st.subheader("Данные на уровне заказов")

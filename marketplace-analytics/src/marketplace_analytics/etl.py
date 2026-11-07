@@ -6,7 +6,7 @@ import pandas as pd
 from .config import DB, DEMO, RAW, FILES, FIELDS
 
 SCHEMA = """
-CREATE TABLE customers (customer_id TEXT PRIMARY KEY, customer_unique_id TEXT NOT NULL, customer_state TEXT);
+CREATE TABLE customers (customer_id TEXT PRIMARY KEY, customer_unique_id TEXT NOT NULL, country TEXT NOT NULL, city TEXT NOT NULL);
 CREATE TABLE orders (order_id TEXT PRIMARY KEY, customer_id TEXT NOT NULL, order_status TEXT,
     order_purchase_timestamp TEXT, order_delivered_customer_date TEXT, order_estimated_delivery_date TEXT);
 CREATE TABLE items (order_id TEXT, order_item_id INTEGER, product_id TEXT, seller_id TEXT,
@@ -32,7 +32,7 @@ WITH item_totals AS (
 ), payment_totals AS (
  SELECT order_id, ROUND(SUM(payment_value),2) AS paid_amount FROM payments GROUP BY order_id
 )
-SELECT o.order_id, c.customer_unique_id, c.customer_state, o.order_status,
+SELECT o.order_id, c.customer_unique_id, c.country, c.city, o.order_status,
        substr(o.order_purchase_timestamp,1,10) AS order_date,
        substr(o.order_purchase_timestamp,1,7) AS order_month,
        substr(o.order_delivered_customer_date,1,10) AS delivered_date,
@@ -57,7 +57,8 @@ LEFT JOIN review_totals r ON r.order_id=o.order_id;
 CREATE UNIQUE INDEX idx_mart_order ON order_mart(order_id);
 CREATE INDEX idx_mart_date ON order_mart(order_date);
 CREATE INDEX idx_mart_customer ON order_mart(customer_unique_id);
-CREATE INDEX idx_mart_state ON order_mart(customer_state);
+CREATE INDEX idx_mart_country ON order_mart(country);
+CREATE INDEX idx_mart_city ON order_mart(country, city);
 """
 
 
@@ -77,6 +78,10 @@ def load_csvs(source_dir: Path, db_path: Path = DB) -> dict[str, int]:
             primary = {"orders":"order_id", "customers":"customer_id", "products":"product_id"}[table]
             if df[primary].isna().any() or df[primary].duplicated().any():
                 raise ValueError(f"{filename}: invalid or duplicate {primary}")
+        if table == "customers":
+            for column in ("country", "city"):
+                if df[column].isna().any() or df[column].astype(str).str.strip().eq("").any():
+                    raise ValueError(f"{filename}: missing {column}")
         if table == "items" and (df[["order_id", "order_item_id"]].duplicated().any()):
             raise ValueError(f"{filename}: duplicate item keys")
         if table == "items":

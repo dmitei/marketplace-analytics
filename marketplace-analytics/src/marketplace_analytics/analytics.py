@@ -13,14 +13,16 @@ def get_orders(db_path: Path = DB) -> pd.DataFrame:
         return pd.read_sql_query("SELECT * FROM order_mart", conn)
 
 
-def filter_orders(df: pd.DataFrame, start=None, end=None, states=None) -> pd.DataFrame:
+def filter_orders(df: pd.DataFrame, start=None, end=None, countries=None, cities=None) -> pd.DataFrame:
     out = df.copy()
     if start is not None:
         out = out[out.order_date >= str(start)[:10]]
     if end is not None:
         out = out[out.order_date <= str(end)[:10]]
-    if states:
-        out = out[out.customer_state.isin(states)]
+    if countries is not None:
+        out = out[out.country.isin(countries)]
+    if cities is not None:
+        out = out[out.city.isin(cities)]
     return out
 
 

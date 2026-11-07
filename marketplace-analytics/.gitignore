@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.DS_Store
+.env
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+/data/raw/
+/data/demo/*.csv
+/data/processed/

@@ -1,5 +1,8 @@
-"""Генерирует воспроизводимые вымышленные данные маркетплейса для стран СНГ."""
+"""Генерирует воспроизводимые вымышленные данные маркетплейса для стран СНГ.
 
+Все суммы заданы в RUB как единой расчётной валюте демонстрации.
+Распределения городов, цен, оплат и сроков доставки придуманы для проекта.
+Это не статистика рынка и не конвертация реальных валют."""
 import argparse
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -15,11 +18,11 @@ def generate_demo(output_dir: Path = DEMO, n_orders: int = 3600, seed: int = 42)
     output_dir.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
     n_users = max(10, int(n_orders * 0.68))
-    regions = [
-        "Россия · Москва", "Россия · Санкт-Петербург", "Россия · Казань",
-        "Беларусь · Минск", "Казахстан · Алматы", "Казахстан · Астана",
-        "Армения · Ереван", "Кыргызстан · Бишкек", "Узбекистан · Ташкент",
-        "Таджикистан · Душанбе", "Азербайджан · Баку",
+    locations = [
+        ("Россия", "Москва"), ("Россия", "Санкт-Петербург"), ("Россия", "Казань"),
+        ("Беларусь", "Минск"), ("Казахстан", "Алматы"), ("Казахстан", "Астана"),
+        ("Армения", "Ереван"), ("Кыргызстан", "Бишкек"), ("Узбекистан", "Ташкент"),
+        ("Таджикистан", "Душанбе"), ("Азербайджан", "Баку"),
     ]
     categories = ["Красота и здоровье", "Электроника и аксессуары", "Дом и текстиль",
                   "Спорт и отдых", "Мебель и декор", "Игрушки", "Книги"]
@@ -28,7 +31,7 @@ def generate_demo(output_dir: Path = DEMO, n_orders: int = 3600, seed: int = 42)
                        "Дом и текстиль": 2200, "Спорт и отдых": 3000,
                        "Мебель и декор": 6500, "Игрушки": 1800, "Книги": 700}
     customer_users = rng.choice(n_users, size=n_orders, replace=True)
-    customer_states = rng.choice(regions, size=n_users)
+    customer_locations = rng.integers(0, len(locations), size=n_users)
     start = datetime(2024, 1, 1)
     offsets = rng.integers(0, 545, size=n_orders)
     order_dates = [start + timedelta(days=int(d), hours=int(rng.integers(8, 22))) for d in offsets]
@@ -38,7 +41,8 @@ def generate_demo(output_dir: Path = DEMO, n_orders: int = 3600, seed: int = 42)
                              "product_category_name": product_categories})
     customers = pd.DataFrame({"customer_id": [f"c{i:06d}" for i in range(n_orders)],
                               "customer_unique_id": [f"u{u:06d}" for u in customer_users],
-                              "customer_state": [customer_states[u] for u in customer_users]})
+                              "country": [locations[customer_locations[u]][0] for u in customer_users],
+                              "city": [locations[customer_locations[u]][1] for u in customer_users]})
     orders, items, payments, reviews = [], [], [], []
     for i, date in enumerate(order_dates):
         oid = f"o{i:06d}"
